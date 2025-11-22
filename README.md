@@ -26,3 +26,32 @@ The project is split into three main components:
   - displays the remote desktop
   - sends user input back to the server
 
+## Build
+
+### Install vcpkg
+
+mkdir <some_path>\dev
+cd <some_path>\dev
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+bootstrap-vcpkg.bat
+
+<some_path>\dev\vcpkg will be <vcpkg_path>. There is already vcpkg.exe placed
+
+### Build Qt
+
+Run inside <vcpkg_path> in Visual Studio Developer Command Prompt:
+
+  vcpkg install qtbase[core,gui,widgets]:x64-windows
+
+Qt build may take significant amount of time
+
+### Build remote-desktop-lab project
+
+Replace all <vcpkg_path> entries in CMakePresets.json by correct path to vcpkg
+
+Run build_release.cmd or build_debug.cmd
+
+Wait until build is accomplished
+
+Find executables in build\deploy directory
