@@ -19,11 +19,9 @@ add_subdirectory(core)
 set(QT_DEPLOYMENT_REQUIRED false)
 
 if (RDL_BUILD_SERVER)
-    set(QT_DEPLOYMENT_REQUIRED true)
     add_subdirectory(server-qt)    
 endif()
 
 if (RDL_BUILD_CLIENT)
-    set(QT_DEPLOYMENT_REQUIRED true)
     add_subdirectory(client-qt)
 endif()

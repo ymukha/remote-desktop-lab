@@ -2,8 +2,15 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QVBoxLayout>
+#include <QTimer>
+#include <QImage>
+#include <QPixmap>
+
+#include <vector>
+#include <cstddef>
 
 #include "version.h"
+#include "screen_capture.h"
 
 int main(int argc, char *argv[])
 {
@@ -16,18 +23,49 @@ int main(int argc, char *argv[])
     auto* centralWidget = new QWidget(&mainWindow);
     auto* layout = new QVBoxLayout(centralWidget);
 
-    auto* label = new QLabel(&mainWindow);
-    label->setText(QString("Remote Desktop Lab - Server\nCore version: %1")
+    auto* infoLabel = new QLabel(&mainWindow);
+    infoLabel->setText(QString("Remote Desktop Lab - Server\nCore version: %1")
                     .arg(QString::fromStdString(rdl::core::GetCoreVersion())));
-    label->setAlignment(Qt::AlignCenter);
+    infoLabel->setAlignment(Qt::AlignCenter);
 
-    layout->addWidget(label);
+    auto* imageLabel = new QLabel(&mainWindow);
+    imageLabel->setAlignment(Qt::AlignCenter);
+    imageLabel->setMinimumSize(640, 360); // 16x9
+
+    layout->addWidget(infoLabel);
+    layout->addWidget(imageLabel, 1);
 
     centralWidget->setLayout(layout);
 
     mainWindow.setCentralWidget(centralWidget);
-    mainWindow.resize(640, 480);
+    mainWindow.resize(960, 540); // 16x9
     mainWindow.show();
 
+    auto* timer = new QTimer(&mainWindow);
+    QObject::connect(timer, &QTimer::timeout,
+        [&](){
+            std::vector<std::byte> pixels;
+            int width{0}, height{0}, bytesPerLine{0};
+
+            if (rdl::core::CaptureScreen(pixels, width, height, bytesPerLine)
+                && width > 0 && height > 0)
+                {
+                    QImage img(reinterpret_cast<const uchar*>(pixels.data()), 
+                                width, height, static_cast<qsizetype>(bytesPerLine),
+                                QImage::Format_ARGB32);
+
+                    QImage scaled = img.scaled(imageLabel->size(),
+                                                Qt::KeepAspectRatio,
+                                                Qt::SmoothTransformation);
+                    imageLabel->setPixmap(QPixmap::fromImage(scaled));
+                }
+                else
+                {
+                    imageLabel->setText("Screen capture failed");
+                }
+        });
+
+    timer->setTimerType(Qt::PreciseTimer);
+    timer->start(16.6); // 60fps, on the boundary of Win non-hires timer (15.6 ms)
     return app.exec();
 }
