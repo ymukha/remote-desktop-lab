@@ -8,6 +8,7 @@ add_executable(rdl_server_qt
 target_include_directories(rdl_server_qt
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/logging
 )
 
 target_link_libraries(rdl_server_qt
@@ -26,6 +27,11 @@ set_target_properties(rdl_server_qt
         FOLDER "App"
         WIN32_EXECUTABLE TRUE
         AUTOMOC ON
+)
+
+target_compile_definitions(rdl_server_qt
+    PRIVATE
+        LOG_FILENAME="rdl_server_qt.log"
 )
 
 set(QT_DLLS

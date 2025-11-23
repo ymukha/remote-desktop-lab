@@ -8,6 +8,7 @@ add_executable(rdl_client_qt
 target_include_directories(rdl_client_qt
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/../server-qt/src/logging
 )
 
 target_link_libraries(rdl_client_qt
@@ -17,6 +18,11 @@ target_link_libraries(rdl_client_qt
         Qt6::Gui
         Qt6::Core
         Qt6::Network
+)
+
+target_compile_definitions(rdl_client_qt
+    PRIVATE
+        LOG_FILENAME="rdl_client_qt.log"
 )
 
 target_compile_features(rdl_client_qt PRIVATE cxx_std_17)

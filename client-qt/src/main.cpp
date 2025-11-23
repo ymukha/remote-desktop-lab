@@ -8,50 +8,14 @@
 #include <QDebug>
 
 #include "version.h"
+#include "qt_logging_handler.h"
+
 #include "network_client.h"
 
-void fileLogMessageHandler(QtMsgType type,
-                           const QMessageLogContext &context,
-                           const QString &msg)
-{
-    Q_UNUSED(context);
-
-    static QFile file("rdl_client_qt.log");
-    static bool initialized = false;
-
-    if (!initialized) {
-        file.open(QIODevice::Append | QIODevice::Text);
-        initialized = true;
-    }
-
-    if (!file.isOpen())
-        return;
-
-    QTextStream out(&file);
-
-    const char* typeStr = "";
-    switch (type) {
-    case QtDebugMsg:    typeStr = "DEBUG"; break;
-    case QtInfoMsg:     typeStr = "INFO "; break;
-    case QtWarningMsg:  typeStr = "WARN "; break;
-    case QtCriticalMsg: typeStr = "ERROR"; break;
-    case QtFatalMsg:    typeStr = "FATAL"; break;
-    }
-
-    out << QDateTime::currentDateTime().toString(Qt::ISODate)
-        << " [" << typeStr << "] "
-        << msg << "\n";
-
-    out.flush();
-
-    if (type == QtFatalMsg) {
-        abort();
-    }
-}
 
 int main(int argc, char *argv[])
 {
-    qInstallMessageHandler(fileLogMessageHandler);
+    qInstallMessageHandler(QtLogging::fileLogMessageHandler);
 
     QApplication app(argc, argv);
 
