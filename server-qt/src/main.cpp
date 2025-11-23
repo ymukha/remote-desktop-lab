@@ -5,15 +5,61 @@
 #include <QTimer>
 #include <QImage>
 #include <QPixmap>
+#include <QDateTime>
+#include <QFile>
+#include <QTextStream>
+#include <QDebug>
 
 #include <vector>
 #include <cstddef>
 
 #include "version.h"
 #include "screen_capture.h"
+#include "network_server.h"
+
+void fileLogMessageHandler(QtMsgType type,
+                           const QMessageLogContext &context,
+                           const QString &msg)
+{
+    Q_UNUSED(context);
+
+    static QFile file("rdl_server_qt.log");
+    static bool initialized = false;
+
+    if (!initialized) {
+        file.open(QIODevice::Append | QIODevice::Text);
+        initialized = true;
+    }
+
+    if (!file.isOpen())
+        return;
+
+    QTextStream out(&file);
+
+    const char* typeStr = "";
+    switch (type) {
+    case QtDebugMsg:    typeStr = "DEBUG"; break;
+    case QtInfoMsg:     typeStr = "INFO "; break;
+    case QtWarningMsg:  typeStr = "WARN "; break;
+    case QtCriticalMsg: typeStr = "ERROR"; break;
+    case QtFatalMsg:    typeStr = "FATAL"; break;
+    }
+
+    out << QDateTime::currentDateTime().toString(Qt::ISODate)
+        << " [" << typeStr << "] "
+        << msg << "\n";
+
+    out.flush();
+
+    if (type == QtFatalMsg) {
+        abort();
+    }
+}
 
 int main(int argc, char *argv[])
 {
+    qInstallMessageHandler(fileLogMessageHandler);
+
     QApplication app(argc, argv);
 
     QMainWindow mainWindow;
@@ -64,6 +110,9 @@ int main(int argc, char *argv[])
                     imageLabel->setText("Screen capture failed");
                 }
         });
+
+    NetworkServer server(&mainWindow);
+    server.start(5000);
 
     timer->setTimerType(Qt::PreciseTimer);
     timer->start(16.6); // 60fps, on the boundary of Win non-hires timer (15.6 ms)
