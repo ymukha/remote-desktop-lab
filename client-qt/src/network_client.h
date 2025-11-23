@@ -3,6 +3,9 @@
 #include <QObject>
 #include <QTcpSocket>
 #include <QString>
+#include <QByteArray>
+
+#include "frame_protocol.h"
 
 class NetworkClient : public QObject
 {
@@ -20,5 +23,17 @@ private slots:
     void onSocketError(QAbstractSocket::SocketError);
 
 protected:
-    QTcpSocket *m_Socket{nullptr};
+    enum class ReadState
+    {
+        Header,
+        Payload,
+    };
+
+    void resetFrameReadState();
+
+    QTcpSocket *m_Socket{ nullptr };
+    ReadState   m_State{ ReadState::Header };
+    QByteArray m_HeaderBuffer;
+    QByteArray m_PayloadBuffer;
+    rdl::core::FrameHeader m_Header{};
 };

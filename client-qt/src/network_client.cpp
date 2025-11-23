@@ -1,4 +1,4 @@
-#include <network_client.h>
+#include "network_client.h"
 
 #include <QDebug>
 
@@ -38,12 +38,89 @@ void NetworkClient::onServerDisconnect()
 
 void NetworkClient::onReadFromServer()
 {
-    QByteArray data = m_Socket->readAll();
+    while(m_Socket->bytesAvailable() > 0)
+    {
+        const auto frameHeaderSize{ sizeof(rdl::core::FrameHeader) };
 
-     qInfo() << "NetworkClient: received from server: " << data;
+        if (m_State == ReadState::Header)
+        {
+            const auto bytesToRead = static_cast<quint64>(frameHeaderSize) - m_HeaderBuffer.size();
+            auto chunk = m_Socket->read(bytesToRead);
+            m_HeaderBuffer.append(chunk);
+
+            if (m_HeaderBuffer.size() < static_cast<int>(frameHeaderSize))
+                return; // Header has not been completely received yet
+            
+            std::memcpy(&m_Header, m_HeaderBuffer.constData(), frameHeaderSize);
+
+            if (m_Header.magic != rdl::core::FRAME_MAGIC)
+            {
+                qWarning() << "NetworkClient: invalid frame magic: "
+                           << Qt::hex << m_Header.magic;
+
+                resetFrameReadState();
+                return;
+            }
+
+            if (m_Header.version != rdl::core::FRAME_VERSION)
+            {
+                qWarning() << "NetworkClient: unsupported frame version:"
+                           << m_Header.version;
+                
+                resetFrameReadState();
+                return;
+            }
+
+            if (m_Header.dataSize == 0)
+            {
+                qWarning() << "NetworkClient: frame with zero dataSize";
+
+                resetFrameReadState();
+                return;
+            }
+
+            qInfo() << "NetworkClient: header received:"
+                    << " w=" << m_Header.width
+                    << ", h=" << m_Header.height
+                    << ", fmt=" << m_Header.pixelFormat
+                    << ", dataSize=" << m_Header.dataSize;
+
+            m_PayloadBuffer.clear();
+            m_PayloadBuffer.reserve(static_cast<int>(m_Header.dataSize));
+
+            m_State = ReadState::Payload;
+        }
+        else if(m_State == ReadState::Payload)
+        {
+            const auto totalSize{ m_Header.dataSize };
+            const auto bytesReceived{ static_cast<uint32_t>(m_PayloadBuffer.size()) };
+            const auto bytesToReceive = totalSize - bytesReceived;
+
+            QByteArray chunk = m_Socket->read(bytesToReceive);
+            m_PayloadBuffer.append(chunk);
+
+            if (m_PayloadBuffer.size() < static_cast<int>(totalSize))
+                return; // Not all expected data have been received
+
+            qInfo() << "NetworkClient: full frame received: size="
+                    << m_PayloadBuffer.size();
+
+            resetFrameReadState();
+
+            return;
+        }
+    }
 }
 
 void NetworkClient::onSocketError(QAbstractSocket::SocketError)
 {
     qWarning() << "NetworkClient: error=" << m_Socket->errorString();
+}
+
+void NetworkClient::resetFrameReadState()
+{
+    m_State = ReadState::Header;
+    m_HeaderBuffer.clear();
+    m_HeaderBuffer.reserve(static_cast<int>(sizeof(rdl::core::FrameHeader)));
+    m_PayloadBuffer.clear();
 }

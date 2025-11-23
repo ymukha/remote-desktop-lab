@@ -19,7 +19,8 @@ protected slots:
     void onReadFromClient();
 
 protected:
-    void CleanupClientSocket();
+    void cleanupClientSocket();
+    void sendTestFrame();
 
     QTcpServer *m_Server{nullptr};
     QTcpSocket *m_ClientSocket{nullptr};
