@@ -32,6 +32,9 @@ Makefile
 *.user
 *.sln
 
+# vscode
+.vscode/
+
 # OS
 .DS_Store
 Thumbs.db
