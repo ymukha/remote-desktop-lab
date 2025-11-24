@@ -3,6 +3,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
 add_executable(rdl_server_qt
     src/main.cpp
     src/network_server.cpp
+    src/screen_capture_service.cpp
 )
 
 target_include_directories(rdl_server_qt

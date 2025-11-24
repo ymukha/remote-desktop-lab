@@ -3,6 +3,8 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Gui Core Network)
 add_executable(rdl_client_qt
     src/main.cpp
     src/network_client.cpp
+    src/frame_view.cpp
+    src/main_window.cpp
 )
 
 target_include_directories(rdl_client_qt

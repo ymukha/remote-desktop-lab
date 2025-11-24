@@ -4,6 +4,7 @@
 #include <QTcpSocket>
 #include <QString>
 #include <QByteArray>
+#include <QImage>
 
 #include "frame_protocol.h"
 
@@ -15,6 +16,9 @@ public:
     explicit NetworkClient(QObject* parent = nullptr);
 
     void connectToServer(const QString& host, quint16 port);
+
+signals:
+    void frameReceived(const QImage& frame);
 
 private slots:
     void onServerConnect();

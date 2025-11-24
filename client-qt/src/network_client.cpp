@@ -96,14 +96,46 @@ void NetworkClient::onReadFromServer()
             const auto bytesReceived{ static_cast<uint32_t>(m_PayloadBuffer.size()) };
             const auto bytesToReceive = totalSize - bytesReceived;
 
-            QByteArray chunk = m_Socket->read(bytesToReceive);
-            m_PayloadBuffer.append(chunk);
+            if (bytesToReceive > 0)
+            {
+                QByteArray chunk = m_Socket->read(bytesToReceive);
+                m_PayloadBuffer.append(chunk);
+            }
 
             if (m_PayloadBuffer.size() < static_cast<int>(totalSize))
                 return; // Not all expected data have been received
 
             qInfo() << "NetworkClient: full frame received: size="
-                    << m_PayloadBuffer.size();
+                    << m_PayloadBuffer.size()
+                    << " (remaining bytes in socket: " << m_Socket->bytesAvailable() << ")";
+
+            if (m_Header.pixelFormat != static_cast<uint32_t>(rdl::core::FramePixelFormat::BGRA32))
+            {
+                qWarning() << "NetworkClient: unsupported pixel format="
+                           << m_Header.pixelFormat;
+
+                resetFrameReadState();
+                return;
+            }
+
+            const auto w{ static_cast<int>(m_Header.width) };
+            const auto h{ static_cast<int>(m_Header.height) };
+
+            if (m_PayloadBuffer.size() != w * h * 4)
+            {
+                qWarning() << "NetworkClient: payload size mismatch: "
+                           << m_PayloadBuffer.size()
+                           << ", expected:" << (w * h * 4);
+
+                resetFrameReadState();
+                return;
+            }
+
+            QImage frameImage(w, h, QImage::Format_ARGB32);
+            std::memcpy(frameImage.bits(), m_PayloadBuffer.constData(),
+                        static_cast<size_t>(m_PayloadBuffer.size()));
+
+            emit frameReceived(frameImage);
 
             resetFrameReadState();
 

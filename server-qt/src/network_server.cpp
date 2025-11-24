@@ -122,3 +122,23 @@ void NetworkServer::sendTestFrame()
     m_ClientSocket->write(payload);
     m_ClientSocket->flush();
 }
+
+void NetworkServer::sendFrame(const std::vector<std::byte>& pixels,
+                              int width, int height, int bytesPerLine)
+{
+    if (!m_ClientSocket)
+        return;
+
+    qInfo() << "NetworkServer: sending frame:"
+            << " w=" << width
+            << ", h=" << height;
+
+    auto header = rdl::core::makeFrameHeader(width, height,
+                                             rdl::core::FramePixelFormat::BGRA32,
+                                             bytesPerLine * height);
+
+    m_ClientSocket->write(reinterpret_cast<const char*>(&header), sizeof(header));
+    m_ClientSocket->write(reinterpret_cast<const char*>(pixels.data()), header.dataSize);
+
+    qInfo() << "end sending";
+}
