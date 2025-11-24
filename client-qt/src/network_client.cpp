@@ -131,11 +131,13 @@ void NetworkClient::onReadFromServer()
                 return;
             }
 
-            QImage frameImage(w, h, QImage::Format_ARGB32);
-            std::memcpy(frameImage.bits(), m_PayloadBuffer.constData(),
+            if (m_FrameImage.size() != QSize(w, h))
+                m_FrameImage = QImage(w, h, QImage::Format_ARGB32);
+
+            std::memcpy(m_FrameImage.bits(), m_PayloadBuffer.constData(),
                         static_cast<size_t>(m_PayloadBuffer.size()));
 
-            emit frameReceived(frameImage);
+            emit frameReceived(m_FrameImage);
 
             resetFrameReadState();
 

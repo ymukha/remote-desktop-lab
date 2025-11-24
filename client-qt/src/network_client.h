@@ -40,4 +40,5 @@ protected:
     QByteArray m_HeaderBuffer;
     QByteArray m_PayloadBuffer;
     rdl::core::FrameHeader m_Header{};
+    QImage m_FrameImage;
 };

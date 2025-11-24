@@ -24,6 +24,7 @@ void FrameView::paintEvent(QPaintEvent*)
     if (m_Frame.isNull())
         return;
 
+#if 1
     const QRect targetRect = rect();
     const QSize frameSize = m_Frame.size();
     const QSize scaledSize = frameSize.scaled(targetRect.size(), Qt::KeepAspectRatio);
@@ -31,7 +32,11 @@ void FrameView::paintEvent(QPaintEvent*)
     const int x = (targetRect.width() - scaledSize.width()) / 2;
     const int y = (targetRect.height() - scaledSize.height()) / 2;
 
+    p.setRenderHint(QPainter::SmoothPixmapTransform, false);
     p.drawImage(QRect(QPoint(x, y), scaledSize), m_Frame);
+#else
+    p.drawImage(0, 0, m_Frame);
+#endif
 }
 
 QSize FrameView::sizeHint() const
