@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
      * Processing queue and sending frame delta may help,
      * but it's absent now. So, meantime just increase
      * capture interval */
-    capture.start(1000);
+    capture.start(200);
 
     return app.exec();
 }
