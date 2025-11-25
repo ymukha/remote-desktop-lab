@@ -14,6 +14,7 @@
 
 #include "screen_capture_service.h"
 #include "network_server.h"
+#include "downscale_helper.h"
 
 int main(int argc, char *argv[])
 {
@@ -49,9 +50,28 @@ int main(int argc, char *argv[])
         &capture,
         &ScreenCaptureService::frameCaptured,
         &server,
-        &NetworkServer::sendFrame);
+        [&server](const std::vector<std::byte>& pixels,
+                  int width, int height, int bytesPerLine)
+        {
+            std::vector<std::byte> outPixels;
+            int outWidth { 0 }, outHeight{ 0 },
+                outBytesPerLine{ 0 };
+
+            helpers::downscaleFrame(pixels, width, height, bytesPerLine,
+                                    outPixels, outWidth, outHeight, outBytesPerLine,
+                                    1920, 1080);
+
+            server.sendFrame(outPixels, outWidth, outHeight, outBytesPerLine);
+            // server.sendFrame(pixels, width, height, bytesPerLine);
+        });
 
 #if 0
+    QObject::connect(
+        &capture,
+        &ScreenCaptureService::frameCaptured,
+        &server,
+        &NetworkServer::sendFrame);
+
     QObject::connect(
         &capture,
         &ScreenCaptureService::frameCaptured,
