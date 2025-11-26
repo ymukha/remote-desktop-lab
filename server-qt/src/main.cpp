@@ -15,6 +15,11 @@
 #include "screen_capture_service.h"
 #include "network_server.h"
 #include "downscale_helper.h"
+#include "passthrough_frame_codec.h"
+#include "jpeg_frame_codec.h"
+
+const bool useDownscale{ true };
+const bool useJpeg{ false };
 
 int main(int argc, char *argv[])
 {
@@ -43,7 +48,13 @@ int main(int argc, char *argv[])
     mainWindow.resize(960, 540); // 16x9
     mainWindow.show();
 
-    NetworkServer server(&mainWindow);
+    PassthroughFrameCodec pthruCodec;
+    JPEGFrameCodec jpegCodec;
+
+    NetworkServer server(useJpeg
+                            ? static_cast<rdl::core::IFrameCodec&>(jpegCodec)
+                            : static_cast<rdl::core::IFrameCodec&>(pthruCodec),
+                         &mainWindow);
     ScreenCaptureService capture(&mainWindow);
 
     QObject::connect(
@@ -57,12 +68,21 @@ int main(int argc, char *argv[])
             int outWidth { 0 }, outHeight{ 0 },
                 outBytesPerLine{ 0 };
 
-            helpers::downscaleFrame(pixels, width, height, bytesPerLine,
-                                    outPixels, outWidth, outHeight, outBytesPerLine,
-                                    1920, 1080);
+            if (useDownscale)
+            {
+                /* OPTMISATION: downscale to speed-up reception
+                 * and scaling/drawing on the client side. Not the
+                 * best option as frame looks blurred, but added
+                 * useDownscale option to disable when required
+                 * (for ex., for testing input logic when it is added) */
+                helpers::downscaleFrame(pixels, width, height, bytesPerLine,
+                                        outPixels, outWidth, outHeight, outBytesPerLine,
+                                        1920, 1080);
 
-            server.sendFrame(outPixels, outWidth, outHeight, outBytesPerLine);
-            // server.sendFrame(pixels, width, height, bytesPerLine);
+                server.sendFrame(outPixels, outWidth, outHeight, outBytesPerLine);
+            }
+            else
+                server.sendFrame(pixels, width, height, bytesPerLine);
         });
 
 #if 0

@@ -7,9 +7,11 @@
 
 #include "frame_protocol.h"
 
-NetworkServer::NetworkServer(QObject* parent)
+NetworkServer::NetworkServer(rdl::core::IFrameCodec& codec,
+                             QObject* parent)
     : QObject(parent)
     , m_Server{ new QTcpServer(this) }
+    , m_Codec{ codec }
 {
     connect(m_Server, &QTcpServer::newConnection,
             this, &NetworkServer::onNewConnection);
@@ -46,7 +48,11 @@ void NetworkServer::onNewConnection()
     connect(m_ClientSocket, &QTcpSocket::readyRead,
             this, &NetworkServer::onReadFromClient);
 
-    // Send test frame
+    // Send test frame (make sure we display
+    // gradient as first frame to detect frame
+    // stream absence due to some capturing issue).
+    // In principle this is redundant, but confirms
+    // network connection is alive
     sendTestFrame();
 }
 
@@ -133,12 +139,20 @@ void NetworkServer::sendFrame(const std::vector<std::byte>& pixels,
             << " w=" << width
             << ", h=" << height;
 
-    auto header = rdl::core::makeFrameHeader(width, height,
-                                             rdl::core::FramePixelFormat::BGRA32,
-                                             bytesPerLine * height);
+    m_Codec.encode(pixels, width, height, bytesPerLine, *this);
+}
 
-    m_ClientSocket->write(reinterpret_cast<const char*>(&header), sizeof(header));
-    m_ClientSocket->write(reinterpret_cast<const char*>(pixels.data()), header.dataSize);
+size_t NetworkServer::bytesToWrite() const
+{
+    return m_ClientSocket
+            ?  m_ClientSocket->bytesToWrite()
+            : 0;
+}
 
-    qInfo() << "end sending";
+void NetworkServer::send(const std::byte* data, size_t size)
+{
+    if (m_ClientSocket == nullptr)
+        return;
+
+    m_ClientSocket->write(reinterpret_cast<const char*>(data), size);
 }

@@ -14,6 +14,21 @@ NetworkClient::NetworkClient(QObject* parent)
             this, &NetworkClient::onReadFromServer);
     connect(m_Socket, &QTcpSocket::errorOccurred,
             this, &NetworkClient::onSocketError);
+
+    m_Worker = std::thread([this]() { workerLoop(); });
+}
+
+NetworkClient::~NetworkClient()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_QueueMutex);
+        m_StopWorker = true;
+    }
+
+    m_QueueCv.notify_all();
+
+    if (m_Worker.joinable())
+        m_Worker.join();
 }
 
 void NetworkClient::connectToServer(const QString& host, quint16 port)
@@ -131,18 +146,60 @@ void NetworkClient::onReadFromServer()
                 return;
             }
 
-            if (m_FrameImage.size() != QSize(w, h))
-                m_FrameImage = QImage(w, h, QImage::Format_ARGB32);
+            FrameJob job;
+            job.header = m_Header;
+            job.payload = std::move(m_PayloadBuffer);
 
-            std::memcpy(m_FrameImage.bits(), m_PayloadBuffer.constData(),
-                        static_cast<size_t>(m_PayloadBuffer.size()));
+            {
+                std::lock_guard<std::mutex> lock(m_QueueMutex);
+                m_FrameQueue.emplace_back(std::move(job));
+            }
 
-            emit frameReceived(m_FrameImage);
+            m_QueueCv.notify_one();
 
             resetFrameReadState();
 
             return;
         }
+    }
+}
+
+/* OPTIMISATION: decouple frame buffer to image
+ * conversion to a separate thread to unblock reception
+ * of the next frame */
+void NetworkClient::workerLoop()
+{
+    while (true)
+    {
+        FrameJob job;
+
+        {
+            // Locks mutex in c-tor
+            std::unique_lock<std::mutex> lock(m_QueueMutex);
+            // Unlocks lock in wait immediate when enters cv.wait(),
+            // then locks again when predicate becomes true
+            m_QueueCv.wait(lock, [this]() {
+                return m_StopWorker || !m_FrameQueue.empty();
+            });
+
+            if (m_StopWorker && m_FrameQueue.empty())
+                break;
+            
+            job = std::move(m_FrameQueue.front());
+            m_FrameQueue.pop_front();
+        }
+
+        const int w = static_cast<int>(job.header.width);
+        const int h = static_cast<int>(job.header.height);
+
+        // Uses external payload buffer (destroyed at the end of iteration)
+        QImage tmp(reinterpret_cast<const uchar*>(job.payload.constData()),
+                    w, h,  QImage::Format_ARGB32);
+
+        // frame image uses own payload buffer after copy
+        QImage frame = tmp.copy();
+
+        emit frameReceived(frame);
     }
 }
 
